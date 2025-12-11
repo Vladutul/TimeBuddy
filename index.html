@@ -2,16 +2,28 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Time Tracker</title>
+  <title>TimeBuddy</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-  <h1>Time Tracker</h1>
+  <h1>TimeBuddy</h1>
+
+  <h3>Add Project</h3>
+  <form id="projectForm">
+    <input type="text" id="projectName" placeholder="Project Name" required>
+    <button type="submit">Add Project</button>
+  </form>
+  <ul id="projectList"></ul>
 
   <h3>Add Time Entry</h3>
   <form id="entryForm">
     <input type="date" id="date" required>
     <input type="number" id="hours" step="0.25" placeholder="Hours" required>
     <input type="text" id="description" placeholder="Description">
+    <select id="projectSelect">
+      <option value="">-- No project --</option>
+    </select>
     <button type="submit">Add</button>
   </form>
 
@@ -19,48 +31,89 @@
   <ul id="entriesList"></ul>
 
   <script>
-    const API = "http://localhost:5000/api/time-entries";
+    const API = "http://localhost:5000/api";
 
-    async function loadEntries() {
-      const res = await fetch(API);
-      const entries = await res.json();
-      const list = document.getElementById("entriesList");
-      list.innerHTML = "";
+    async function loadProjects() {
+    const res = await fetch(`${API}/projects`);
+    const projects = await res.json();
 
-      entries.forEach(e => {
+    const select = document.getElementById("projectSelect");
+    select.innerHTML = '<option value="">-- No project --</option>';
+    projects.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.name;
+        select.appendChild(opt);
+    });
+
+    const list = document.getElementById("projectList");
+    list.innerHTML = "";
+    projects.forEach(p => {
         const li = document.createElement("li");
-        li.textContent = `${e.date} — ${e.hours}h — ${e.description || ""}`;
+        li.textContent = p.name + " ";
 
         const btn = document.createElement("button");
         btn.textContent = "Delete";
         btn.onclick = async () => {
-          await fetch(`${API}/${e.id}`, { method: "DELETE" });
-          loadEntries();
+        await fetch(`${API}/projects/${p.id}`, { method: "DELETE" });
+        loadProjects();
+        loadEntries();
         };
 
+        li.appendChild(btn);
+        list.appendChild(li);
+    });
+    }
+
+    document.getElementById("projectForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const name = document.getElementById("projectName").value;
+      await fetch(`${API}/projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      document.getElementById("projectName").value = "";
+      loadProjects();
+    });
+
+    async function loadEntries() {
+      const res = await fetch(`${API}/time-entries`);
+      const entries = await res.json();
+      const list = document.getElementById("entriesList");
+      list.innerHTML = "";
+      entries.forEach(e => {
+        const li = document.createElement("li");
+        li.textContent = `${e.date} — ${e.hours}h — ${e.description || ""} ${e.project_name ? "- " + e.project_name : ""}`;
+        const btn = document.createElement("button");
+        btn.textContent = "Delete";
+        btn.onclick = async () => {
+          await fetch(`${API}/time-entries/${e.id}`, { method: "DELETE" });
+          loadEntries();
+        };
         li.appendChild(btn);
         list.appendChild(li);
       });
     }
 
-    document.getElementById("entryForm").addEventListener("submit", async (e) => {
+    document.getElementById("entryForm").addEventListener("submit", async e => {
       e.preventDefault();
       const payload = {
         date: document.getElementById("date").value,
         hours: parseFloat(document.getElementById("hours").value),
-        description: document.getElementById("description").value
+        description: document.getElementById("description").value,
+        project_id: document.getElementById("projectSelect").value || null
       };
-
-      await fetch(API, {
+      await fetch(`${API}/time-entries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-
       e.target.reset();
       loadEntries();
     });
 
+    loadProjects();
     loadEntries();
   </script>
 </body>
