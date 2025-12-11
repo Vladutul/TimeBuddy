@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Time Tracker</title>
+</head>
+<body>
+  <h1>Time Tracker</h1>
+
+  <h3>Add Time Entry</h3>
+  <form id="entryForm">
+    <input type="date" id="date" required>
+    <input type="number" id="hours" step="0.25" placeholder="Hours" required>
+    <input type="text" id="description" placeholder="Description">
+    <button type="submit">Add</button>
+  </form>
+
+  <h3>Entries</h3>
+  <ul id="entriesList"></ul>
+
+  <script>
+    const API = "http://localhost:5000/api/time-entries";
+
+    async function loadEntries() {
+      const res = await fetch(API);
+      const entries = await res.json();
+      const list = document.getElementById("entriesList");
+      list.innerHTML = "";
+
+      entries.forEach(e => {
+        const li = document.createElement("li");
+        li.textContent = `${e.date} — ${e.hours}h — ${e.description || ""}`;
+
+        const btn = document.createElement("button");
+        btn.textContent = "Delete";
+        btn.onclick = async () => {
+          await fetch(`${API}/${e.id}`, { method: "DELETE" });
+          loadEntries();
+        };
+
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById("entryForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        date: document.getElementById("date").value,
+        hours: parseFloat(document.getElementById("hours").value),
+        description: document.getElementById("description").value
+      };
+
+      await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      e.target.reset();
+      loadEntries();
+    });
+
+    loadEntries();
+  </script>
+</body>
+</html>
